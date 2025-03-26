@@ -1,6 +1,7 @@
 import tkinter
 
 from utils import lex
+from Layout import Layout
 
 WIDTH, HEIGHT = 800, 600
 HSTEP, VSTEP = 13, 18
@@ -29,24 +30,12 @@ class Browser:
 
     def draw(self):
          self.canvas.delete("all")
-         for x, y, char in self.display_list:
+         for x, y, text, font in self.display_list:
               if y > self.scroll + HEIGHT or y + VSTEP < self.scroll: continue
-              self.canvas.create_text(x, y - self.scroll, text=char)
+              self.canvas.create_text(x, y - self.scroll, text=text, font=font, anchor="nw")
               
     def load(self, url):
         body = url.request()
-        text = lex(body)
-        
-        self.display_list = layout(text)
+        tokens = lex(body)
+        self.display_list = Layout(tokens).display_list
         self.draw()
-
-def layout(text):
-    display_list = []
-    cursor_x, cursor_y = HSTEP, VSTEP
-    for char in text:
-        display_list.append((cursor_x, cursor_y, char))
-        cursor_x += HSTEP
-        if cursor_x >= WIDTH - HSTEP:
-                cursor_y += VSTEP
-                cursor_x = HSTEP
-    return display_list
