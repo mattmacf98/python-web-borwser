@@ -1,7 +1,6 @@
 import tkinter
-
-from utils import lex
 from Layout import Layout
+from HTMLParser import HTMLParser
 
 WIDTH, HEIGHT = 800, 600
 HSTEP, VSTEP = 13, 18
@@ -36,6 +35,6 @@ class Browser:
               
     def load(self, url):
         body = url.request()
-        tokens = lex(body)
-        self.display_list = Layout(tokens).display_list
+        root = HTMLParser(body).parse()
+        self.display_list = Layout(root).display_list
         self.draw()
