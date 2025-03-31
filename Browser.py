@@ -1,6 +1,7 @@
 import tkinter
-from Layout import Layout
 from HTMLParser import HTMLParser
+from DocumentLayout import DocumentLayout
+from Utils import paint_tree
 
 WIDTH, HEIGHT = 800, 600
 HSTEP, VSTEP = 13, 18
@@ -20,7 +21,8 @@ class Browser:
         self.canvas.pack()
 
     def scrolldown(self, e):
-         self.scroll += SCROLL_STEP
+         max_y = max(self.document.height + 2*VSTEP - HEIGHT, 0)
+         self.scroll = min(self.scroll + SCROLL_STEP, max_y)
          self.draw()
 
     def scrollUp(self, e):
@@ -29,12 +31,15 @@ class Browser:
 
     def draw(self):
          self.canvas.delete("all")
-         for x, y, text, font in self.display_list:
-              if y > self.scroll + HEIGHT or y + VSTEP < self.scroll: continue
-              self.canvas.create_text(x, y - self.scroll, text=text, font=font, anchor="nw")
+         for cmd in self.display_cmds:
+              if cmd.top > self.scroll + HEIGHT or cmd.bottom < self.scroll: continue
+              cmd.execute(self.scroll, self.canvas)
               
     def load(self, url):
         body = url.request()
         root = HTMLParser(body).parse()
-        self.display_list = Layout(root).display_list
+        self.document = DocumentLayout(root)
+        self.document.layout()
+        self.display_cmds = []
+        paint_tree(self.document, self.display_cmds)
         self.draw()
