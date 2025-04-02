@@ -1,9 +1,9 @@
 class DrawRect:
-    def __init__(self, x1, y1, x2, y2, color):
-        self.top = y1
-        self.left = x1
-        self.bottom = y2
-        self.right = x2
+    def __init__(self, rect, color):
+        self.top = rect.top
+        self.left = rect.left
+        self.bottom = rect.bottom
+        self.right = rect.right
         self.color = color
 
     def execute(self, scroll, canvas):
