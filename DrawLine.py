@@ -4,6 +4,8 @@ from Rect import Rect
 class DrawLine:
     def __init__(self, x1, y1, x2, y2, color, thickness):
         self.rect = Rect(x1, y1, x2, y2)
+        self.top = y1
+        self.bottom = y2
         self.color = color
         self.thickness = thickness
 

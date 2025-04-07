@@ -1,4 +1,5 @@
 import tkinter.font
+from InputLayout import InputLayout
 from LineLayout import LineLayout
 from Rect import Rect
 from Text import Text
@@ -10,6 +11,7 @@ import tkinter
 from TextLayout import TextLayout
 
 WIDTH, HEIGHT = 800, 600
+INPUT_WIDTH_PX = 200
 HSTEP, VSTEP = 13, 18
 FONTS = {}
 BLOCK_ELEMENTS = ["html", "body", "article", "section", "nav", "aside", "h1", "h2", "h3", "h4", "h5", "h6", "hgroup", "header",
@@ -41,7 +43,7 @@ class BlockLayout:
             return "inline"
         elif any([isinstance(child, Element) and child.tag in BLOCK_ELEMENTS for child in self.node.children]):
             return "block"
-        elif self.node.children:
+        elif self.node.children or self.node.tag == "input":
             return "inline"
         else:
             return "block"
@@ -74,11 +76,15 @@ class BlockLayout:
             for word in tree_node.text.split():
                 self.word(tree_node, word)
         else:
-            for child in tree_node.children:
-                self.recurse(child)
+            if tree_node.tag == "br":
+                self.new_line()
+            elif tree_node.tag == "input" or tree_node.tag == "button":
+                self.input(tree_node)
+            else:
+                for child in tree_node.children:
+                    self.recurse(child)
 
     def word(self, tree_node, word):
-        color = tree_node.style["color"]
         weight= tree_node.style["font-weight"]
         style = tree_node.style["font-style"]
         if style == "normal":
@@ -93,12 +99,33 @@ class BlockLayout:
         text = TextLayout(tree_node, word, line, previous_word)
         line.children.append(text)
         self.cursor_x += width + font.measure(" ")
+    
+    def input(self, tree_node):
+        w = INPUT_WIDTH_PX
+        if self.cursor_x + w > self.width:
+            self.new_line()
+        line = self.children[-1]
+        previous_word = line.children[-1] if line.children else None
+        input = InputLayout(tree_node, self, previous_word)
+        line.children.append(input)
+
+        weight = tree_node.style["font-weight"]
+        style = tree_node.style["font-style"]
+        if style == "normal":
+            style = "roman"
+        size = int(float(tree_node.style["font-size"][:-2]) * 0.75)
+        font = get_font(size, weight, style)
+
+        self.cursor_x += w + font.measure(" ")
 
     def new_line(self):
         self.cursor_x = 0
         last_line = self.children[-1] if self.children else None
         new_line = LineLayout(self.node, self, last_line)
         self.children.append(new_line)
+
+    def should_paint(self):
+        return isinstance(self.node, Text) or (self.node.tag != "input" and self.node.tag != "button")
     
     def paint(self):
         cmds = []

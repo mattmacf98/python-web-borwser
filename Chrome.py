@@ -30,9 +30,14 @@ class Chrome:
         add_tab_width = self.font.measure("+") + 2*self.padding
         self.new_tab_rect = Rect(self.padding, self.padding, self.padding + add_tab_width, self.padding + self.font_height)
 
+    def blur(self):
+        self.focus = None
+
     def keypress(self, char):
         if self.focus == "address_bar":
             self.address_bar += char
+            return True
+        return False
 
     def enter(self):
         if self.focus == "address_bar":

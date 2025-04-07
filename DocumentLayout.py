@@ -18,6 +18,9 @@ class DocumentLayout:
         self.width = WIDTH - 2 * HSTEP
         child.layout()
         self.height = child.height
+
+    def should_paint(self):
+        return True
         
     def paint(self):
         return []

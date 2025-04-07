@@ -33,6 +33,9 @@ class TextLayout:
             self.x = self.parent.x
         
         self.height = self.font.metrics("linespace")
+    
+    def should_paint(self):
+        return True
 
     def paint(self):
         color = self.node.style["color"]

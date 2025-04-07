@@ -27,9 +27,9 @@ class URL:
 
         if ":" in self.host:
             self.host, port = self.host.split(":", 1)
-            self.port = port
+            self.port = int(port)
 
-    def request(self):
+    def request(self, payload=None):
         sckt = socket.socket(
             family=socket.AF_INET,
             type=socket.SOCK_STREAM,
@@ -41,10 +41,19 @@ class URL:
             ctx = ssl.create_default_context()
             sckt = ctx.wrap_socket(sckt, server_hostname=self.host)
 
+        method = "POST" if payload else "GET"
+
         # Send the request to the host
-        request = "GET {} HTTP/1.0\r\n".format(self.path)
+        request = "{} {} HTTP/1.0\r\n".format(method, self.path)
         request += "Host: {}\r\n".format(self.host)
+        if payload:
+            length = len(payload.encode("utf8"))
+            request += "Content-Length: {}\r\n".format(length)
         request += "\r\n"
+
+        if payload:
+            request += payload
+
         sckt.send(request.encode("utf8"))
 
         # get the response
@@ -77,8 +86,4 @@ class URL:
                 if "/" in dir:
                     dir, _ = dir.rsplit("/", 1)
             url = dir + "/" + url
-        
-        if url.startswith("/"):
-            return URL(self.scheme + "://" + self.host + url)
-        else:
-            return URL(self.scheme + "://" + self.host + ":" + str(self.port) + url)
+        return URL(self.scheme + "://" + self.host + ":" + str(self.port) + url)
