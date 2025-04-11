@@ -3,9 +3,11 @@ from CSSParser import CSSParser, cascade_priority, style
 from Element import Element
 from HTMLParser import HTMLParser
 from DocumentLayout import DocumentLayout
+from JSContext import JSContext
 from Text import Text
 from Utils import HEIGHT, paint_tree, tree_to_list
 import urllib
+import dukpy
 
 HSTEP, VSTEP = 13, 18
 SCROLL_STEP = 100
@@ -39,15 +41,21 @@ class Tab:
               if isinstance(element, Text):
                    pass
               elif element.tag == "a" and "href" in element.attributes:
+                    if self.js.dispatch_event("click", element):
+                         return
                     url = self.url.resolve(element.attributes["href"])
                     return self.load(url)
               elif element.tag == "input":
+                   if self.js.dispatch_event("click", element):
+                        return
                    self.focus = element
                    element.attributes["value"] = ""
                    self.focus = element
                    element.is_focused = True
                    return self.render()
               elif element.tag == "button":
+                   if self.js.dispatch_event("click", element):
+                        return
                    # walkl up tree to fins form for this button
                    while element:
                         if element.tag == "form" and "action" in element.attributes:
@@ -59,6 +67,8 @@ class Tab:
          self.render()
 
     def submit_form(self, element):
+         if self.js.dispatch_event("submit", element):
+              return
          inputs = [node for node in tree_to_list(element, []) if isinstance(node, Element) and node.tag == "input" and "name" in node.attributes]
          
          body = ""
@@ -76,6 +86,8 @@ class Tab:
 
     def keypress(self, char):
          if self.focus:
+              if self.js.dispatch_event("keydown", self.focus):
+                   return
               self.focus.attributes["value"] += char
               self.render() 
 
@@ -104,6 +116,7 @@ class Tab:
         self.root = HTMLParser(body).parse()
         
         self.rules = DEFAULT_STYLE_SHEET.copy()
+     #    retrieve and apply css files
         links = [node.attributes["href"] for node in tree_to_list(self.root, []) if isinstance(node, Element) 
                  and node.tag == "link" and node.attributes.get("rel") == "stylesheet" and 'href' in node.attributes]
         for link in links:
@@ -113,6 +126,18 @@ class Tab:
              except:
                   continue
              self.rules.extend(CSSParser(body).parse())
+
+          # retrieve and execute js scripts
+        self.js = JSContext(self)
+        scripts = [node.attributes["src"] for node in tree_to_list(self.root, []) if isinstance(node, Element)
+                   and node.tag == "script" and "src" in node.attributes]     
+        for script in scripts:
+             script_url = url.resolve(script)
+             try:
+                  body = script_url.request()
+             except:
+                  continue
+             self.js.run(script, body)
         self.render()
      
     def render(self):

@@ -6,6 +6,7 @@ ENTRIES = ["Matthew was here"]
 
 def show_comments():
     out = "<!doctype html>"
+    # out += "<link rel=\"stylesheet\" href=\"/comment.css\">"
     for entry in ENTRIES:
         out += "<p>" + entry + "</p>"
 
@@ -13,6 +14,8 @@ def show_comments():
     out += "<p><input name=guest></p>"
     out += "<p><button>Sign the book!</button></p>"
     out += "</form>"
+    out += "<strong></strong>"
+    out += "<script src=\"/comment.js\"></script>"
     return "200 OK", out
 
 def form_decode(body):
@@ -25,7 +28,7 @@ def form_decode(body):
     return params
 
 def add_entry(params):
-    if 'guest' in params:
+    if 'guest' in params and len(params['guest']) <= 20:
         ENTRIES.append(params['guest'])
     return show_comments()
 
@@ -37,6 +40,12 @@ def not_found(url, method):
 def do_request(method, url, headers, body):
     if method == "GET" and url == "/":
         return show_comments()
+    elif method == "GET" and url == "/comment.js":
+        with open("comment.js") as f:
+            return "200 OK", f.read()
+    elif method == "GET" and url == "/comment.css":
+        with open("comment.css") as f:
+            return "200 OK", f.read()
     elif method == "POST" and url == "/add":
         params = form_decode(body)
         return add_entry(params)
