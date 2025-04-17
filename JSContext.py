@@ -51,6 +51,15 @@ class JSContext:
             child.parent = node
         self.tab.render()
 
+    def XMLHttpRequest_send(self, method, url, body):
+        full_url = self.tab.url.resolve(url)
+        if not self.tab.allowed_request(full_url):
+            raise Exception("Blocked request to {} due to CSP".format(full_url))
+        if full_url.origin() != self.tab.url.origin():
+            raise Exception("Cross-origin XHR request not allowed")
+        headers, out = full_url.request(self.tab.url, body)
+        return out
+    
     def run(self, script, code):
         try:
             return self.interp.evaljs(code)

@@ -5,7 +5,6 @@ from Tab import Tab
 from Utils import HEIGHT, WIDTH
 
 
-
 class Browser:
     def __init__(self):
         self.tabs = []
@@ -54,18 +53,18 @@ class Browser:
         else:
             self.focus = "content"
             self.chrome.blur()
-            tab_y = e.y - self.chrome.tabbar_bottom
+            tab_y = e.y - self.chrome.bottom
             self.active_tab.click(e.x, tab_y)
         self.draw()
 
     def draw(self):
         self.canvas.delete("all")
-        self.active_tab.draw(self.canvas, self.chrome.tabbar_bottom)
+        self.active_tab.draw(self.canvas, self.chrome.bottom)
         for cmd in self.chrome.paint():
             cmd.execute(0, self.canvas)
 
     def new_tab(self, url):
-        new_tab = Tab(HEIGHT - self.chrome.tabbar_bottom)
+        new_tab = Tab(HEIGHT - self.chrome.bottom)
         new_tab.load(url)
         self.active_tab = new_tab
         self.tabs.append(new_tab)

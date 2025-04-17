@@ -5,9 +5,9 @@ from HTMLParser import HTMLParser
 from DocumentLayout import DocumentLayout
 from JSContext import JSContext
 from Text import Text
+from URL import URL
 from Utils import HEIGHT, paint_tree, tree_to_list
 import urllib
-import dukpy
 
 HSTEP, VSTEP = 13, 18
 SCROLL_STEP = 100
@@ -108,11 +108,23 @@ class Tab:
               self.history.pop() # remove current url
               back_url = self.history.pop()
               self.load(back_url)
+
+    def allowed_request(self, url):
+         return self.allowed_origins == None or url.origin() in self.allowed_origins
               
     def load(self, url, payload=None):
         self.url = url
         self.history.append(self.url)
-        body = url.request(payload)
+        headers, body = url.request(self.url, payload)
+        
+        self.allowed_origins = None
+        if "content-security-policy" in headers:
+             csp = headers["content-security-policy"].split()
+             if len(csp) > 0 and csp[0] == "default-src":
+                  self.allowed_origins = []
+                  for origin in csp[1:]:
+                       self.allowed_origins.append(URL(origin).origin())
+
         self.root = HTMLParser(body).parse()
         
         self.rules = DEFAULT_STYLE_SHEET.copy()
@@ -121,8 +133,11 @@ class Tab:
                  and node.tag == "link" and node.attributes.get("rel") == "stylesheet" and 'href' in node.attributes]
         for link in links:
              style_url = url.resolve(link)
+             if not self.allowed_request(style_url):
+                  print("Blocked request to {} due to CSP".format(style_url))
+                  continue
              try:
-                  body = style_url.request()
+                  headers, body = style_url.request(url)
              except:
                   continue
              self.rules.extend(CSSParser(body).parse())
@@ -133,8 +148,11 @@ class Tab:
                    and node.tag == "script" and "src" in node.attributes]     
         for script in scripts:
              script_url = url.resolve(script)
+             if not self.allowed_request(script_url):
+                  print("Blocked request to {} due to CSP".format(script_url))
+                  continue
              try:
-                  body = script_url.request()
+                  headers, body = script_url.request(url)
              except:
                   continue
              self.js.run(script, body)

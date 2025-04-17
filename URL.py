@@ -1,6 +1,8 @@
 import socket
 import ssl
 
+COOKIE_JAR = {}
+
 class URL:
     def __str__(self):
         port_part = ":" + str(self.port)
@@ -29,7 +31,10 @@ class URL:
             self.host, port = self.host.split(":", 1)
             self.port = int(port)
 
-    def request(self, payload=None):
+    def origin(self):
+        return self.scheme + "://" + self.host + ":" + str(self.port)
+
+    def request(self, referer, payload=None):
         sckt = socket.socket(
             family=socket.AF_INET,
             type=socket.SOCK_STREAM,
@@ -49,6 +54,14 @@ class URL:
         if payload:
             length = len(payload.encode("utf8"))
             request += "Content-Length: {}\r\n".format(length)
+        if self.host in COOKIE_JAR:
+            cookie, params = COOKIE_JAR[self.host]
+            allow_cookie = True
+            if referer and params.get("samesite", "none") == "lax":
+                if method != "GET":
+                    allow_cookie = self.host == referer.host
+            if allow_cookie:
+                request += "Cookie: {}\r\n".format(cookie)
         request += "\r\n"
 
         if payload:
@@ -71,11 +84,24 @@ class URL:
         assert "transfer-encoding" not in response_headers
         assert "content-encoding" not in response_headers
 
+        if "set-cookie" in response_headers:
+            cookie = response_headers["set-cookie"]
+            params = {}
+            if ";" in cookie:
+                cookie, rest = cookie.split(";", 1)
+                for param in rest.split(";"):
+                    if "=" in param:
+                        key, value = param.split("=", 1)
+                    else:
+                        value = "true"
+                    params[key.strip().casefold()] = value.strip().casefold()
+            COOKIE_JAR[self.host] = (cookie, params)
+
         #get actual content
         content = response.read()
         sckt.close()
 
-        return content
+        return response_headers, content
     
     def resolve(self, url):
         if "://" in url: return URL(url)
