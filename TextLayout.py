@@ -1,8 +1,6 @@
 
-import tkinter
-
 from DrawText import DrawText
-from Utils import get_font
+from Utils import get_font, linespace
 
 
 class TextLayout:
@@ -25,18 +23,21 @@ class TextLayout:
         size = int(float(self.node.style["font-size"][:-2]) * 0.75)
         self.font = get_font(size, weight, style)
 
-        self.width = self.font.measure(self.word)
+        self.width = self.font.measureText(self.word)
         if self.previous:
-            space = self.previous.font.measure(" ")
+            space = self.previous.font.measureText(" ")
             self.x = self.previous.x + self.previous.width + space
         else:
             self.x = self.parent.x
         
-        self.height = self.font.metrics("linespace")
+        self.height = linespace(self.font)
     
     def should_paint(self):
         return True
 
+    def paint_effects(self, cmds):
+        return cmds
+    
     def paint(self):
         color = self.node.style["color"]
         return [DrawText(self.x, self.y, self.word, self.font, color)]

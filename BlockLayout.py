@@ -1,14 +1,13 @@
-import tkinter.font
 from InputLayout import InputLayout
 from LineLayout import LineLayout
-from Rect import Rect
 from Text import Text
 from Element import Element
-from DrawText import DrawText
 from DrawRect import DrawRect
-import tkinter
+import skia
 
 from TextLayout import TextLayout
+from Utils import get_font
+from PaintUtils import paint_visual_effects
 
 WIDTH, HEIGHT = 800, 600
 INPUT_WIDTH_PX = 200
@@ -17,14 +16,6 @@ FONTS = {}
 BLOCK_ELEMENTS = ["html", "body", "article", "section", "nav", "aside", "h1", "h2", "h3", "h4", "h5", "h6", "hgroup", "header",
                    "footer", "address", "p", "hr", "pre", "blockquote", "ol", "ul", "menu", "li", "dl", "dt", "dd", "figure", 
                    "figcaption", "main", "div", "table", "form", "fieldset", "legend", "details", "summary"]
-
-def get_font(size, weight, style):
-    key = (size, weight, style)
-    if key not in FONTS:
-        font = tkinter.font.Font(size=size, weight=weight, slant=style)
-        label = tkinter.Label(font=font)
-        FONTS[key] = (font, label)
-    return FONTS[key][0]
 
 class BlockLayout:
     def __init__(self, node, parent, previous_sibling):
@@ -91,14 +82,14 @@ class BlockLayout:
             style = "roman"
         size = int(float(tree_node.style["font-size"][:-2]) * 0.75)
         font = get_font(size, weight, style)
-        width = font.measure(word)
+        width = font.measureText(word)
         if self.cursor_x + width > self.width:
             self.new_line()
         line = self.children[-1]
         previous_word = line.children[-1] if line.children else None
         text = TextLayout(tree_node, word, line, previous_word)
         line.children.append(text)
-        self.cursor_x += width + font.measure(" ")
+        self.cursor_x += width + font.measureText(" ")
     
     def input(self, tree_node):
         w = INPUT_WIDTH_PX
@@ -116,7 +107,7 @@ class BlockLayout:
         size = int(float(tree_node.style["font-size"][:-2]) * 0.75)
         font = get_font(size, weight, style)
 
-        self.cursor_x += w + font.measure(" ")
+        self.cursor_x += w + font.measureText(" ")
 
     def new_line(self):
         self.cursor_x = 0
@@ -127,6 +118,14 @@ class BlockLayout:
     def should_paint(self):
         return isinstance(self.node, Text) or (self.node.tag != "input" and self.node.tag != "button")
     
+    def self_rect(self):
+        return skia.Rect.MakeLTRB(self.x, self.y, self.x + self.width, self.y + self.height)
+    
+    def paint_effects(self, cmds):
+        cmds = paint_visual_effects(self.node, cmds, self.self_rect())
+        return cmds
+
+    
     def paint(self):
         cmds = []
         if self.layout_mode() == "inline":
@@ -134,5 +133,5 @@ class BlockLayout:
                 bg_color = self.node.style.get("background-color", "transparent")
                 if bg_color != "transparent":
                     x2, y2 = self.x + self.width, self.y + self.height
-                    cmds.append(DrawRect(Rect(self.x, self.y, x2, y2), bg_color))
+                    cmds.append(DrawRect(skia.Rect.MakeLTRB(self.x, self.y, x2, y2), 0, bg_color))
         return cmds

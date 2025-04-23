@@ -6,7 +6,8 @@ from DocumentLayout import DocumentLayout
 from JSContext import JSContext
 from Text import Text
 from URL import URL
-from Utils import HEIGHT, paint_tree, tree_to_list
+from Utils import HEIGHT, tree_to_list
+from PaintUtils import paint_tree
 import urllib
 
 HSTEP, VSTEP = 13, 18
@@ -98,10 +99,9 @@ class Tab:
     def scrollUp(self):
          self.scroll -= SCROLL_STEP
 
-    def draw(self, canvas, offset):
+    def raster(self, canvas):
          for cmd in self.display_cmds:
-              if cmd.top > self.scroll + HEIGHT or cmd.bottom < self.scroll: continue
-              cmd.execute(self.scroll - offset, canvas)
+              cmd.execute(canvas)
 
     def go_back(self):
          if len(self.history) > 1:
