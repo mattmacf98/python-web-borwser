@@ -78,6 +78,15 @@ def not_found(url, method):
     out += "<h1>{} {} not found!</h1>".format(method, url)
     return out
 
+def show_count():
+    out = "<!doctype html>"
+    out += "<div>"
+    out += " Let's count up to 99!"
+    out += "</div>"
+    out += "<div>Output</div>"
+    out += "<script src=\"/eventloop.js\"></script>"
+    return out
+
 def do_request(session, method, url, headers, body):
     if method == "GET" and url == "/":
         return show_comments(session)
@@ -86,9 +95,14 @@ def do_request(session, method, url, headers, body):
     elif method == "GET" and url == "/comment.js":
         with open("comment.js") as f:
             return "200 OK", f.read()
+    elif method == "GET" and url == "/eventloop.js":
+        with open("eventloop.js") as f:
+            return "200 OK", f.read()
     elif method == "GET" and url == "/comment.css":
         with open("comment.css") as f:
             return "200 OK", f.read()
+    elif method == "GET" and url == "/count":
+        return "200 OK", show_count()
     elif method == "POST" and url == "/":
         params = form_decode(body)
         return do_login(session, params)

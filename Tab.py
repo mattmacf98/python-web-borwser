@@ -4,6 +4,8 @@ from Element import Element
 from HTMLParser import HTMLParser
 from DocumentLayout import DocumentLayout
 from JSContext import JSContext
+from Task import Task
+from TaskRunner import TaskRunner
 from Text import Text
 from URL import URL
 from Utils import HEIGHT, tree_to_list
@@ -16,14 +18,23 @@ SCROLL_STEP = 100
 DEFAULT_STYLE_SHEET = CSSParser(open("browser.css").read()).parse()
 
 class Tab:
-    def __init__(self, tab_height) -> None:
+    def __init__(self, tab_height, browser) -> None:
         self.history = []
+        self.js = None
         self.scroll = 0
         self.url = None
         self.focus = None
         self.tab_height = tab_height
+        self.task_runner = TaskRunner(self)
+        self.needs_render = False
+        self.browser = browser
+
+    def set_needs_render(self):
+         self.needs_render = True
+         self.browser.set_needs_animation_frame(self)
 
     def click(self, x, y):
+         self.render()
          if self.focus:
               self.focus.is_focused = False
               self.focus = None
@@ -53,7 +64,7 @@ class Tab:
                    element.attributes["value"] = ""
                    self.focus = element
                    element.is_focused = True
-                   return self.render()
+                   return self.set_needs_render()
               elif element.tag == "button":
                    if self.js.dispatch_event("click", element):
                         return
@@ -65,7 +76,7 @@ class Tab:
                              
               element = element.parent
           
-         self.render()
+         self.set_needs_render()
 
     def submit_form(self, element):
          if self.js.dispatch_event("submit", element):
@@ -90,7 +101,7 @@ class Tab:
               if self.js.dispatch_event("keydown", self.focus):
                    return
               self.focus.attributes["value"] += char
-              self.render() 
+              self.set_needs_render()
 
     def scrolldown(self):
          max_y = max(self.document.height + 2*VSTEP - self.tab_height, 0)
@@ -143,6 +154,8 @@ class Tab:
              self.rules.extend(CSSParser(body).parse())
 
           # retrieve and execute js scripts
+        if self.js:
+             self.js.discarded = True
         self.js = JSContext(self)
         scripts = [node.attributes["src"] for node in tree_to_list(self.root, []) if isinstance(node, Element)
                    and node.tag == "script" and "src" in node.attributes]     
@@ -155,12 +168,23 @@ class Tab:
                   headers, body = script_url.request(url)
              except:
                   continue
-             self.js.run(script, body)
-        self.render()
+             task = Task(self.js.run, script, body)
+             self.task_runner.scheduele_task(task)
+        self.set_needs_render()
      
     def render(self):
+        if not self.needs_render:
+             return
+        self.browser.measure.time("render")
+        self.needs_render = False
+        self.browser.measure.time("runRAFHandlers")
+        self.js.interp.evaljs("__runRAFHandlers()")
+        self.browser.measure.stop("runRAFHandlers")
         style(self.root, sorted(self.rules, key=cascade_priority))
         self.document = DocumentLayout(self.root)
         self.document.layout()
         self.display_cmds = []
         paint_tree(self.document, self.display_cmds)
+        self.browser.set_needs_raster_and_draw()
+        self.browser.raster_and_draw()
+        self.browser.measure.stop("render")

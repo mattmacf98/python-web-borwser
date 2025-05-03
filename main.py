@@ -4,7 +4,7 @@ import sys
 import sdl2
 import ctypes
 
-def mainloop(browser):
+def mainloop(browser: Browser):
     event = sdl2.SDL_Event()
     while True:
         while sdl2.SDL_PollEvent(ctypes.byref(event)) != 0:
@@ -23,6 +23,9 @@ def mainloop(browser):
                     browser.scroll_up()
             elif event.key.keysym.sym == sdl2.SDL_TEXTINPUT:
                 browser.handle_key(event.text.text.decode("utf-8"))
+        browser.active_tab.task_runner.run()
+        browser.raster_and_draw()
+        browser.scheduele_animation_frame()
 
 if __name__ == "__main__":
     sdl2.SDL_Init(sdl2.SDL_INIT_EVENTS)

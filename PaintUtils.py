@@ -15,7 +15,7 @@ def paint_tree(layout_object, display_list):
 def paint_visual_effects(node, cmds, rect):
     opacity = float(node.style.get("opacity", "1.0"))
     blend_mode = node.style.get("mix-blend-mode")
-    if node.style.get("overflow" "visible") == "clip":
+    if node.style.get("overflow", "visible") == "clip":
         if not blend_mode:
             blend_mode = "source-over"
         border_radius = float(node.style.get("border-radius", "0px")[:-2])

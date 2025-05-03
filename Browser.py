@@ -1,15 +1,21 @@
 import math
 from Chrome import Chrome
+from MeasureTime import MeasureTime
 from Tab import Tab
+from Task import Task
 from Utils import HEIGHT, WIDTH, parse_color
 import sdl2
 import skia
+import threading
 
 HSTEP, VSTEP = 13, 18
+REFRESH_RATE_SEC = 0.033
 
 class Browser:
     def __init__(self):
+        self.measure = MeasureTime()
         self.chrome = Chrome(self)
+        self.animation_timer = None
         self.sdl_windwow = sdl2.SDL_CreateWindow(b"Browser", sdl2.SDL_WINDOWPOS_CENTERED, sdl2.SDL_WINDOWPOS_CENTERED, WIDTH, HEIGHT, sdl2.SDL_WINDOW_SHOWN)
         self.root_surface = skia.Surface.MakeRaster(
             skia.ImageInfo.Make(
@@ -22,6 +28,8 @@ class Browser:
         self.tab_surface = None
         self.tabs = []
         self.active_tab = None
+        self.needs_raster_and_draw = False
+        self.needs_animation_frame = True
 
         if sdl2.SDL_BYTEORDER == sdl2.SDL_BIG_ENDIAN:
             self.RED_MASK = 0xff000000
@@ -33,19 +41,35 @@ class Browser:
             self.GREEN_MASK = 0x0000ff00
             self.BLUE_MASK = 0x00ff0000
             self.ALPHA_MASK = 0xff000000
-        
+
+    
+    def set_needs_raster_and_draw(self):
+        self.needs_raster_and_draw = True
+
+    def set_needs_animation_frame(self, tab):
+        if tab == self.active_tab:
+            self.needs_animation_frame = True
+
+    def scheduele_animation_frame(self):
+        def callback():
+            active_tab =  self.active_tab
+            task = Task(active_tab.render)
+            active_tab.task_runner.scheduele_task(task)
+            self.animation_timer = None
+
+        if self.needs_animation_frame and not self.animation_timer:
+            self.animation_timer = threading.Timer(REFRESH_RATE_SEC, callback)
+            self.animation_timer.start()
 
     def handle_key(self, e):
         if len(e.char) == 0: return
         if not (0x20 <= ord(e.char) <= 0x7E): return
 
         if self.chrome.keypress(e.char):
-            self.raster_chrome()
-            self.draw()
+            pass
         elif self.focus == "content":
             self.active_tab.keypress(e.char)
-            self.raster_tab()
-            self.draw()
+        self.set_needs_raster_and_draw()
 
     def handle_enter(self):
         self.chrome.enter()
@@ -63,17 +87,22 @@ class Browser:
         if e.y < self.chrome.bottom:
             self.focus = None
             self.chrome.click(e.x, e.y)
-            self.raster_chrome()
         else:
-            url = self.active_tab.url
             self.focus = "content"
             self.chrome.blur()
             tab_y = e.y - self.chrome.bottom
             self.active_tab.click(e.x, tab_y)
-            if self.active_tab.url != url:
-                self.raster_chrome()
-            self.raster_tab()
+        self.set_needs_raster_and_draw()
+
+    def raster_and_draw(self):
+        if not self.needs_raster_and_draw:
+            return
+        self.measure.time("raster_and_draw")
+        self.raster_chrome()
+        self.raster_tab()
         self.draw()
+        self.measure.stop("raster_and_draw")
+        self.needs_raster_and_draw = False
 
     def raster_tab(self):
         tab_height = math.ceil(self.active_tab.document.height + 2 * VSTEP)
@@ -127,13 +156,15 @@ class Browser:
 
    
     def new_tab(self, url):
-        new_tab = Tab(HEIGHT - self.chrome.bottom)
+        new_tab = Tab(HEIGHT - self.chrome.bottom, self)
         new_tab.load(url)
         self.active_tab = new_tab
+        self.active_tab.render()
         self.tabs.append(new_tab)
         self.raster_tab()
         self.raster_chrome()
         self.draw()
         
     def handle_quit(self):
+        self.measure.finish()
         sdl2.SDL_DestroyWindow(self.sdl_windwow)
